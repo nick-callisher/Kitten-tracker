@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kittens">
+<meta name="format-detection" content="telephone=no">
+<title>Kitten Tracker</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<link rel="icon" type="image/png" href="icon-512.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 class="app-title">Kitten Tracker</h1>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="board">Board</button>
+    <button class="tab" data-tab="calendar">Calendar</button>
+    <button class="tab" data-tab="weights">Weights</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+</header>
+
+<div id="alerts" class="alerts"></div>
+
+<main>
+  <section id="view-board" class="view active">
+    <div class="view-toolbar">
+      <button class="btn primary" id="add-kitten">+ Add kitten</button>
+      <span class="toolbar-hint">Press and hold a card, then drag it to another stage.</span>
+    </div>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section id="view-calendar" class="view">
+    <div class="view-toolbar">
+      <button class="btn" id="cal-prev" aria-label="Previous month">&lsaquo;</button>
+      <h2 class="cal-title" id="cal-title"></h2>
+      <button class="btn" id="cal-next" aria-label="Next month">&rsaquo;</button>
+      <button class="btn" id="cal-today">Today</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="add-event">+ Add event</button>
+    </div>
+    <div class="cal-legend" id="cal-legend"></div>
+    <div class="calendar" id="calendar"></div>
+    <div class="cal-day-list" id="cal-day-list"></div>
+  </section>
+
+  <section id="view-weights" class="view">
+    <div class="view-toolbar">
+      <h2 class="view-heading" id="weights-heading">Weights</h2>
+      <span class="spacer"></span>
+      <div class="seg" id="weight-range">
+        <button data-days="7">7 days</button>
+        <button data-days="14" class="active">14 days</button>
+        <button data-days="30">30 days</button>
+        <button data-days="0">All</button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-legend" id="chart-legend"></div>
+      <div class="chart-wrap" id="chart-wrap"></div>
+    </div>
+    <div class="view-toolbar">
+      <h2 class="view-heading">Daily weigh-ins</h2>
+      <span class="spacer"></span>
+      <button class="btn primary" id="add-weigh-day">+ Add day</button>
+    </div>
+    <div class="table-wrap" id="weight-table"></div>
+  </section>
+
+  <section id="view-settings" class="view">
+    <div id="settings"></div>
+  </section>
+</main>
+
+<div class="modal-back" id="modal-back">
+  <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/board.js"></script>
+<script src="js/kitten-editor.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/weights.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
