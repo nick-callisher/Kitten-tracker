@@ -269,6 +269,16 @@ table.wt input { min-height: 38px; width: 96px; padding: 4px 6px; text-align: ri
 table.wt .lboz input { width: 52px; }
 table.wt .unit { color: var(--ink-3); font-size: .8em; margin: 0 4px; }
 
+/* ---------- kitten card header & copy from ---------- */
+.sticky-head {
+  position: -webkit-sticky; position: sticky; top: -30px; z-index: 5;
+  background: var(--surface); margin: -18px -18px 14px; padding: 14px 18px 10px;
+  border-radius: 14px 14px 0 0; border-bottom: 1px solid var(--line);
+}
+.copy-from { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.copy-row { display: -webkit-flex; display: flex; }
+.copy-row select { -webkit-flex: 1; flex: 1; margin-right: 8px; }
+
 /* ---------- collar color ---------- */
 div.field { margin-bottom: 14px; }
 .field-label { display: block; font-size: .8em; color: var(--ink-2); font-weight: 600; margin-bottom: 5px; }

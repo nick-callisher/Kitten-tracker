@@ -37,6 +37,52 @@
     }
   }
 
+  /* ---------- Copy From ----------
+     Copies the shared litter info (stage, intake date, dewormer, FVRCP, FeLV/FIV)
+     from another kitten in "At home". Never copies: name, C number, gender, breed,
+     color, collar color, weight, spay/neuter appointment, notes, photo or documents. */
+  function homeStageId() {
+    var st = Store.state.stages;
+    for (var i = 0; i < st.length; i++) if (st[i].name.trim().toLowerCase() === 'at home') return st[i].id;
+    return Store.state.settings.chartStageId || st[0].id;
+  }
+  function copySources() {
+    var home = homeStageId();
+    // Newest first (kittens are stored in the order they were added).
+    return Store.state.kittens.filter(function (k) {
+      return k.stageId === home && !k.archived && k.id !== draft.id;
+    }).reverse();
+  }
+  function copyFromHTML() {
+    var src = copySources();
+    if (!src.length) return '';
+    var stName = Store.getStage(homeStageId()).name;
+    return '<div class="copy-from"><span class="field-label">Copy From</span><div class="copy-row">' +
+      '<select id="ke-copyfrom" aria-label="Kitten to copy from">' + src.map(function (k, i) {
+        return '<option value="' + k.id + '">' + esc(Store.kittenLabel(k)) + (i === 0 ? ' — most recent' : '') + '</option>';
+      }).join('') + '</select>' +
+      '<button class="btn" data-act="copyfrom">Copy</button></div>' +
+      '<div class="field-hint">Copies stage, intake date, dewormer dates, FVRCP vaccines and FeLV/FIV results from a kitten in "' + esc(stName) +
+      '". Name, C number, gender, breed, color, collar, weight, spay/neuter appointment, notes and photo are left alone.</div></div>';
+  }
+  function copyFrom(id) {
+    var src = Store.getKitten(id);
+    if (!src) return;
+    if (!isNew && !confirm('Replace this kitten\'s intake date, dewormer, FVRCP and FeLV/FIV info with ' + (src.name || 'that kitten') + '\'s?')) return;
+    stash();
+    draft.stageId = src.stageId;
+    draft.intakeDate = src.intakeDate;
+    draft.firstDewormer = src.firstDewormer;
+    draft.dewormerNext = src.dewormerNext;
+    draft.fvrcp = JSON.parse(JSON.stringify(src.fvrcp || []));
+    draft.felv = src.felv;
+    draft.fiv = src.fiv;
+    draft.testDate = src.testDate;
+    render();
+    $('#ke-copyfrom', root).value = id;
+    UI.toast('Copied from ' + (src.name || 'kitten') + '. Review, then Save.');
+  }
+
   function collarHTML() {
     var cur = (draft.collarColor || '').toLowerCase();
     var isCustom = cur && Store.collarName(cur) === 'Custom';
@@ -83,7 +129,8 @@
     var stageOpts = s.stages.map(function (st) { return { value: st.id, label: st.name }; });
     var lw = Store.latestWeights(k.id);
     var html =
-      '<div class="modal-head"><h2>' + (isNew ? 'Add kitten' : esc(k.name || 'Kitten')) + '</h2>' +
+      '<div class="modal-head sticky-head"><h2>' + (isNew ? 'Add kitten' : esc(k.name || 'Kitten')) + '</h2>' +
+      '<button class="btn primary" data-act="save" style="margin-right:8px">Save</button>' +
       '<button class="btn" data-act="cancel">Close</button></div>' +
 
       '<div class="editor-tabs"><button data-pane="info"' + (pane === 'info' ? ' class="active"' : '') + '>Info</button>' +
@@ -96,6 +143,7 @@
       '<div class="doc-list" id="ke-docs">' + (isNew ? '' : Documents.listHTML(Store.documentsFor(k.id), false)) + '</div></div>' +
 
       '<div id="ke-pane-info"' + (pane === 'info' ? '' : ' style="display:none"') + '>' +
+      copyFromHTML() +
       '<div class="photo-edit"><div class="card-photo" id="ke-photo">' + UI.photoHTML(k) + '</div><div>' +
       '<label class="btn file-btn">' + (k.photo ? 'Change photo' : 'Add photo') + '<input type="file" accept="image/*" id="ke-file"></label>' +
       (k.photo ? '<button class="btn" data-act="rotate">Rotate</button><button class="btn danger" data-act="nophoto">Remove</button>' : '') +
@@ -234,6 +282,7 @@
     var t = e.target.closest('[data-act],[data-fv-del]');
     if (!t) return;
     if (t.getAttribute('data-act') === 'adddoc') { stash(); Documents.openAdd(draft.id, comeBack); return; }
+    if (t.getAttribute('data-act') === 'copyfrom') { copyFrom($('#ke-copyfrom', root).value); return; }
     if (t.hasAttribute('data-fv-del')) {
       collect(); draft.fvrcp.splice(+t.getAttribute('data-fv-del'), 1);
       $('#ke-fvrcp', root).innerHTML = fvrcpHTML();
