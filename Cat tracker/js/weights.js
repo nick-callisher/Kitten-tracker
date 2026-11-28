@@ -27,10 +27,12 @@
   function series() {
     var from = rangeStart(), seen = {};
     return kittens().map(function (k) {
-      var slot = k.colorSlot || 0, dashed = !!seen[slot];
-      seen[slot] = true;
+      // Two kittens with the same color get a dashed line so they stay tell-apart.
+      var key = (k.collarColor || 'slot' + (k.colorSlot || 0)).toLowerCase(), dashed = !!seen[key];
+      seen[key] = true;
+      var lum = k.collarColor ? Store.luminance(k.collarColor) : 0.5;
       return {
-        k: k, color: Store.kittenColor(k), dashed: dashed,
+        k: k, color: Store.kittenColor(k), dashed: dashed, halo: lum > 0.85 || lum < 0.15,
         pts: Store.weightsFor(k.id).filter(function (w) { return w.date >= from; })
           .map(function (w) { return { date: w.date, v: Store.toUnit(w.grams), g: w.grams }; })
       };
@@ -91,10 +93,12 @@
     data.forEach(function (s) {
       if (!s.pts.length) return;
       var path = s.pts.map(function (p, j) { return (j ? 'L' : 'M') + x(p.date).toFixed(1) + ',' + y(p.v).toFixed(1); }).join('');
-      svg += '<path d="' + path + '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"' +
+      // White or black collars get a gray outline so the line shows on any background.
+      if (s.halo) svg += '<path d="' + path + '" fill="none" stroke="var(--ink-3)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>';
+      svg +='<path d="' + path + '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"' +
         (s.dashed ? ' stroke-dasharray="6 4"' : '') + '/>';
       s.pts.forEach(function (p) {
-        svg += '<circle cx="' + x(p.date) + '" cy="' + y(p.v) + '" r="4" fill="' + s.color + '" stroke="var(--surface)" stroke-width="2"/>';
+        svg += '<circle cx="' + x(p.date) + '" cy="' + y(p.v) + '" r="4" fill="' + s.color + '" stroke="' + (s.halo ? 'var(--ink-3)' : 'var(--surface)') + '" stroke-width="' + (s.halo ? 1.5 : 2) + '"/>';
       });
       var last = s.pts[s.pts.length - 1];
       labels.push({ y: y(last.v), x: x(last.date), name: s.k.name || 'Unnamed' });

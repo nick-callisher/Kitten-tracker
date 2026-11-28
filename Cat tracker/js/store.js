@@ -196,6 +196,7 @@
       felv: '', fiv: '', testDate: '',
       notes: '',
       colorSlot: pickColorSlot(),
+      collarColor: '',
       archived: false
     };
   }
@@ -206,8 +207,30 @@
     for (var i = 1; i < 8; i++) if (used[i] < used[best]) best = i;
     return best;
   }
+  // Collar color (set on the card) wins; otherwise an automatic chart color.
   function kittenColor(k) {
+    if (k.collarColor) return k.collarColor;
     return 'var(--s' + (((k.colorSlot || 0) % 8) + 1) + ')';
+  }
+  var COLLAR_COLORS = [
+    { name: 'Red', hex: '#e53935' }, { name: 'Orange', hex: '#fb8c00' }, { name: 'Yellow', hex: '#fdd835' },
+    { name: 'Lime', hex: '#9ccc65' }, { name: 'Green', hex: '#2e7d32' }, { name: 'Teal', hex: '#00897b' },
+    { name: 'Light blue', hex: '#4fc3f7' }, { name: 'Blue', hex: '#1e88e5' }, { name: 'Navy', hex: '#283593' },
+    { name: 'Purple', hex: '#8e24aa' }, { name: 'Pink', hex: '#f48fb1' }, { name: 'Hot pink', hex: '#d81b60' },
+    { name: 'Brown', hex: '#795548' }, { name: 'Gray', hex: '#9e9e9e' }, { name: 'Black', hex: '#212121' },
+    { name: 'White', hex: '#ffffff' }
+  ];
+  function collarName(hex) {
+    if (!hex) return '';
+    for (var i = 0; i < COLLAR_COLORS.length; i++) if (COLLAR_COLORS[i].hex === hex.toLowerCase()) return COLLAR_COLORS[i].name;
+    return 'Custom';
+  }
+  // Relative luminance 0..1 of a #rrggbb color (used to outline very light/dark colors).
+  function luminance(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return 0.5;
+    var n = parseInt(m[1], 16);
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
   }
   function getKitten(id) {
     for (var i = 0; i < state.kittens.length; i++) if (state.kittens[i].id === id) return state.kittens[i];
@@ -437,7 +460,7 @@
     getStage: function (id) { return findStage(state, id); },
     // kittens
     newKitten: newKitten, getKitten: getKitten, upsertKitten: upsertKitten, deleteKitten: deleteKitten,
-    kittensInStage: kittensInStage, kittenLabel: kittenLabel, kittenColor: kittenColor, isTracked: isTracked,
+    kittensInStage: kittensInStage, kittenLabel: kittenLabel, kittenColor: kittenColor, COLLAR_COLORS: COLLAR_COLORS, collarName: collarName, luminance: luminance, isTracked: isTracked,
     CNUM_RE: CNUM_RE, normalizeCNumber: normalizeCNumber,
     dewormSchedule: dewormSchedule, nextDewormer: nextDewormer, nextFvrcp: nextFvrcp, dueStatus: dueStatus,
     // weights

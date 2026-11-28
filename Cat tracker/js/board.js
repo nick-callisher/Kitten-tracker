@@ -25,7 +25,10 @@
     } else {
       wHTML = '<span class="card-sub">No weight yet</span>';
     }
-    var sub = [k.cNumber ? esc(k.cNumber.toUpperCase()) : '', genderHTML(k.gender)].filter(Boolean).join(' · ');
+    var collar = k.collarColor ? '<span class="collar"><i class="dot ring" style="background:' + esc(k.collarColor) + '"></i>' +
+      esc(Store.collarName(k.collarColor)) + '</span>' : '';
+    var sub = [k.cNumber ? esc(k.cNumber.toUpperCase()) : '', genderHTML(k.gender), collar].filter(Boolean).join(' · ');
+    var lum = k.collarColor ? Store.luminance(k.collarColor) : 0.5;
     var sub2 = [k.breed, k.color].filter(Boolean).map(esc).join(' · ');
     var tracked = Store.isTracked(k);
     var rows = '';
@@ -34,7 +37,7 @@
     else if (tracked) rows += '<div><span class="lbl">Spay/neuter</span><span class="pill ok">Not booked</span></div>';
     var fv = Store.nextFvrcp(k);
     if (fv && tracked) rows += '<div><span class="lbl">FVRCP</span>' + UI.dueHTML(fv) + '</div>';
-    return '<div class="card" data-id="' + k.id + '" style="--kc:' + Store.kittenColor(k) + '">' +
+    return '<div class="card' + (lum > 0.85 ? ' pale' : lum < 0.15 ? ' deep' : '') + '" data-id="' + k.id + '" style="--kc:' + Store.kittenColor(k) + '">' +
       '<div class="card-top"><div class="card-photo">' + UI.photoHTML(k) + '</div>' +
       '<div class="card-main"><div class="card-name">' + esc(k.name || 'Unnamed') + '</div>' +
       '<div class="card-sub">' + sub + '</div>' +

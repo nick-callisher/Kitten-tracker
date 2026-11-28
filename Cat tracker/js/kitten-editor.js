@@ -37,6 +37,27 @@
     }
   }
 
+  function collarHTML() {
+    var cur = (draft.collarColor || '').toLowerCase();
+    var isCustom = cur && Store.collarName(cur) === 'Custom';
+    return '<div class="swatches">' +
+      '<button type="button" class="swatch none' + (!cur ? ' sel' : '') + '" data-collar="" title="No collar (automatic color)" aria-label="No collar">&times;</button>' +
+      Store.COLLAR_COLORS.map(function (c) {
+        return '<button type="button" class="swatch' + (cur === c.hex ? ' sel' : '') + '" data-collar="' + c.hex + '" style="background:' + c.hex +
+          '" title="' + esc(c.name) + '" aria-label="' + esc(c.name) + '"></button>';
+      }).join('') +
+      '<label class="swatch custom' + (isCustom ? ' sel' : '') + '" title="Custom color" style="' + (isCustom ? 'background:' + cur : '') + '">' +
+      (isCustom ? '' : '+') + '<input type="color" id="ke-collar-custom" value="' + (cur || '#888888') + '" aria-label="Custom collar color"></label>' +
+      '</div><div class="field-hint" id="ke-collar-name">' + (cur ? esc(Store.collarName(cur)) + ' — also used for this kitten\'s line on the weight chart' :
+        'No collar set — an automatic color is used') + '</div>';
+  }
+  function setCollar(hex) {
+    draft.collarColor = hex;
+    $('#ke-collar', root).innerHTML = collarHTML();
+    $('#ke-collar-custom', root).addEventListener('change', onCustomCollar);
+  }
+  function onCustomCollar() { setCollar(this.value.toLowerCase()); }
+
   function scheduleHTML() {
     var sch = Store.dewormSchedule(draft), next = Store.nextDewormer(draft), t = Store.today();
     if (!sch.length) return '<div class="field-hint">Enter the 1st dose date and the rest of the schedule fills in every ' +
@@ -87,6 +108,9 @@
       '<label class="field"><span>Gender</span><select id="ke-gender">' + UI.options([
         { value: '', label: 'Unknown' }, 'Female', 'Male'], k.gender) + '</select></label>' +
       '<label class="field"><span>Stage</span><select id="ke-stage">' + UI.options(stageOpts, k.stageId) + '</select></label>' +
+      '</div>' +
+      '<div class="field"><span class="field-label">Collar Color</span><div id="ke-collar">' + collarHTML() + '</div></div>' +
+      '<div class="grid2">' +
       '<label class="field"><span>Breed</span><input type="text" id="ke-breed" value="' + esc(k.breed) + '" placeholder="e.g. DSH"></label>' +
       '<label class="field"><span>Color</span><input type="text" id="ke-color" value="' + esc(k.color) + '" placeholder="e.g. Orange tabby"></label>' +
       '<label class="field"><span>Intake date</span><input type="date" id="ke-intake" value="' + esc(k.intakeDate) + '"></label>' +
@@ -196,10 +220,13 @@
       draft.dewormerNext = this.value;
       refreshSchedule();
     });
+    $('#ke-collar-custom', root).addEventListener('change', onCustomCollar);
     root.addEventListener('click', onClick);
   }
 
   function onClick(e) {
+    var sw = e.target.closest('[data-collar]');
+    if (sw) { setCollar(sw.getAttribute('data-collar')); return; }
     var tabBtn = e.target.closest('[data-pane]');
     if (tabBtn) { if (!tabBtn.disabled) showPane(tabBtn.getAttribute('data-pane')); return; }
     var docRow = e.target.closest('[data-doc]');
