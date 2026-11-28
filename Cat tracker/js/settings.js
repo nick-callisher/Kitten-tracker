@@ -80,6 +80,11 @@
       '<label class="field"><span>Theme</span><select data-cfg="theme">' + UI.options([{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], cfg.theme) + '</select></label>' +
       '<label class="field"><span>Text size</span><select data-cfg="textSize">' + UI.options([{ value: 's', label: 'Small' }, { value: 'm', label: 'Medium' }, { value: 'l', label: 'Large' }, { value: 'xl', label: 'Extra large' }], cfg.textSize) + '</select></label></div></div>' +
 
+      '<div class="set-card"><h2>For the kittens</h2><p class="desc">Opens a video for the kittens to watch in Safari.</p>' +
+      // target=_blank makes the Home Screen app hand the link to Safari.
+      '<a class="btn primary" href="https://www.youtube.com/watch?v=Mr292PG5vs8" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;text-decoration:none">&#128049; Kitten iPad time</a></div>' +
+
       '<div class="set-card"><h2>Archive</h2><p class="desc">Archived kittens are hidden from the board and calendar but their records are kept.</p>' + archiveHTML() + '</div>' +
 
       '<div class="set-card"><h2>Backup &amp; data</h2><p class="desc">All data lives only on this device. If the iPad is reset or website data is cleared, it is gone — ' +
