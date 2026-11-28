@@ -15,6 +15,14 @@
   var modal = document.getElementById('modal');
   var onClose = null;
   function openModal(html, closeCb) {
+    // Fresh element each time so click handlers from earlier dialogs don't linger.
+    var fresh = document.createElement('div');
+    fresh.className = 'modal';
+    fresh.id = 'modal';
+    fresh.setAttribute('role', 'dialog');
+    fresh.setAttribute('aria-modal', 'true');
+    back.replaceChild(fresh, modal);
+    modal = fresh;
     modal.innerHTML = html;
     back.classList.add('open');
     back.scrollTop = 0;
@@ -42,7 +50,7 @@
 
   /* ---------- photos ---------- */
   // Shrink to fit within `max` px and save as JPEG so storage stays small.
-  function resizePhoto(file, max, cb) {
+  function resizePhoto(file, max, cb, quality) {
     var reader = new FileReader();
     reader.onload = function () {
       var img = new Image();
@@ -51,7 +59,7 @@
         var c = document.createElement('canvas');
         c.width = Math.round(w * scale); c.height = Math.round(h * scale);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        cb(c.toDataURL('image/jpeg', 0.75));
+        cb(c.toDataURL('image/jpeg', quality || 0.75));
       };
       img.onerror = function () { alert('Could not read that photo.'); };
       img.src = reader.result;

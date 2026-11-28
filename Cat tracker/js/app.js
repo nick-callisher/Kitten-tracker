@@ -3,7 +3,7 @@
   'use strict';
   var esc = UI.esc;
   var current = 'board';
-  var views = { board: Board, calendar: Calendar, weights: Weights, settings: Settings };
+  var views = { board: Board, calendar: Calendar, weights: Weights, documents: Documents, settings: Settings };
 
   function applyDisplay() {
     var cfg = Store.state.settings, root = document.documentElement;

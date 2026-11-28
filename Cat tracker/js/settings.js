@@ -68,6 +68,14 @@
       '<label class="field" style="max-width:260px"><span>Week starts on</span><select data-cfg-num="weekStart">' + UI.options([{ value: '0', label: 'Sunday' }, { value: '1', label: 'Monday' }], String(cfg.weekStart)) + '</select></label>' +
       '<p class="desc">Appointment types and colors</p>' + typesHTML() + '</div>' +
 
+      '<div class="set-card"><h2>Document categories</h2><p class="desc">Used to sort documents. Renaming a category updates existing documents.</p>' +
+      '<div class="tag-list">' + cfg.docCategories.map(function (c, i) {
+        return '<div class="list-row"><input type="text" data-cat-name="' + i + '" value="' + esc(c) + '">' +
+          '<button class="btn small danger" data-cat-del="' + i + '" aria-label="Delete category">&times;</button></div>';
+      }).join('') + '</div>' +
+      '<div class="list-row"><input type="text" class="grow" id="new-cat" placeholder="New category">' +
+      '<button class="btn" data-act="add-cat">+ Add</button></div></div>' +
+
       '<div class="set-card"><h2>Display</h2><div class="grid2">' +
       '<label class="field"><span>Theme</span><select data-cfg="theme">' + UI.options([{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], cfg.theme) + '</select></label>' +
       '<label class="field"><span>Text size</span><select data-cfg="textSize">' + UI.options([{ value: 's', label: 'Small' }, { value: 'm', label: 'Medium' }, { value: 'l', label: 'Large' }, { value: 'xl', label: 'Extra large' }], cfg.textSize) + '</select></label></div></div>' +
@@ -75,7 +83,8 @@
       '<div class="set-card"><h2>Archive</h2><p class="desc">Archived kittens are hidden from the board and calendar but their records are kept.</p>' + archiveHTML() + '</div>' +
 
       '<div class="set-card"><h2>Backup &amp; data</h2><p class="desc">All data lives only on this device. If the iPad is reset or website data is cleared, it is gone — ' +
-      'export a backup regularly and keep it in Notes, Files or email. Last backup: <b>' + esc(last) + '</b>. Storage used: ' + Store.storageUsedKB() + ' KB of about 5,000 KB.</p>' +
+      'export a backup regularly and keep it in Notes, Files or email. Last backup: <b>' + esc(last) + '</b>. Storage used: ' + Store.storageUsedKB() + ' KB of about 5,000 KB for kitten info, plus ' +
+      (Documents.fmtSize(Store.docsTotalKB() * 1024) || '0 KB') + ' of documents (' + s.documents.length + ' files, stored separately).</p>' +
       '<label class="field" style="max-width:260px"><span>Remind me to back up every (days)</span><input type="number" min="0" data-cfg-num="backupReminderDays" value="' + cfg.backupReminderDays + '"><div class="field-hint">0 turns the reminder off.</div></label>' +
       '<div class="modal-foot"><button class="btn primary" data-act="export">Export backup</button>' +
       '<button class="btn" data-act="import">Import backup</button><span class="spacer"></span>' +
@@ -88,18 +97,27 @@
   /* ---------- backup ---------- */
   function exportBackup() {
     var json = Store.exportJSON(), name = 'kitten-tracker-backup-' + Store.today() + '.json';
+    var nDocs = Store.state.documents.length;
     var root = UI.openModal('<div class="modal-head"><h2>Export backup</h2><button class="btn" data-x>Close</button></div>' +
       '<p class="desc">Tap <b>Download file</b> if it works on your device. Otherwise tap <b>Copy</b> and paste it into a note or email to yourself.</p>' +
+      (nDocs ? '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="bk-files" checked>Include document files in the download (' +
+        Documents.fmtSize(Store.docsTotalKB() * 1024) + ')</label>' +
+        '<p class="field-hint" style="margin-top:0">The copy/paste text below never includes document files — only their names and details.</p>' : '') +
       '<textarea id="bk-text" readonly style="min-height:180px;font-family:monospace;font-size:12px">' + esc(json) + '</textarea>' +
       '<div class="modal-foot"><button class="btn primary" data-dl>Download file</button><button class="btn" data-copy>Copy</button><button class="btn" data-x>Done</button></div>');
     root.addEventListener('click', function (e) {
       if (e.target.closest('[data-x]')) { UI.closeModal(); return; }
       if (e.target.closest('[data-dl]')) {
-        var a = document.createElement('a');
-        a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-        a.download = name; a.target = '_blank';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        Store.markBackedUp(); return;
+        var withFiles = $('#bk-files', root) && $('#bk-files', root).checked;
+        (withFiles ? Store.exportWithFiles() : Promise.resolve(json)).then(function (text) {
+          var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+          var a = document.createElement('a');
+          a.href = url; a.download = name; a.target = '_blank';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+          Store.markBackedUp();
+        }, function (err) { alert('Backup failed: ' + (err.message || err)); });
+        return;
       }
       if (e.target.closest('[data-copy]')) {
         var ta = $('#bk-text', root);
@@ -132,8 +150,10 @@
       var text = $('#bk-paste', root).value.trim();
       if (!text) { alert('Choose a file or paste backup text first.'); return; }
       if (!confirm('Replace all current data with this backup?')) return;
-      try { Store.importJSON(text); UI.closeModal(); UI.toast('Backup restored'); App.applyDisplay(); }
-      catch (err) { alert('Import failed: ' + err.message); }
+      var p;
+      try { p = Store.importJSON(text); } catch (err) { alert('Import failed: ' + err.message); return; }
+      UI.closeModal(); App.applyDisplay();
+      p.then(function () { UI.toast('Backup restored'); }, function (err) { alert('Kittens restored, but some document files could not be saved: ' + (err.message || err)); });
     });
   }
 
@@ -155,6 +175,13 @@
       set(function () { Store.getStage(id).name = name; });
     } else if ((id = t.getAttribute('data-stage-track'))) {
       set(function () { Store.getStage(id).track = t.checked; });
+    } else if (t.hasAttribute('data-cat-name')) {
+      var ci = +t.getAttribute('data-cat-name'), oldName = Store.state.settings.docCategories[ci], newName = t.value.trim();
+      if (!newName) { t.value = oldName; return; }
+      set(function (s) {
+        s.settings.docCategories[ci] = newName;
+        s.documents.forEach(function (d) { if (d.category === oldName) d.category = newName; });
+      });
     } else if ((id = t.getAttribute('data-type-name'))) {
       set(function () { Store.apptType(id).name = t.value.trim() || Store.apptType(id).name; });
     } else if ((id = t.getAttribute('data-type-color'))) {
@@ -171,6 +198,16 @@
       if (!name) { inp.focus(); return; }
       s.stages.push({ id: Store.uid(), name: name, track: true });
       Store.save(); UI.toast('Stage added');
+    } else if (act === 'add-cat') {
+      var ci2 = $('#new-cat', el), cn = ci2.value.trim();
+      if (!cn) { ci2.focus(); return; }
+      s.settings.docCategories.push(cn); Store.save();
+    } else if (t.hasAttribute('data-cat-del')) {
+      var cats = s.settings.docCategories, cd = +t.getAttribute('data-cat-del');
+      if (cats.length === 1) { alert('Keep at least one category.'); return; }
+      var used = s.documents.filter(function (d) { return d.category === cats[cd]; }).length;
+      if (used && !confirm(used + ' document(s) use "' + cats[cd] + '". They will keep that label. Delete the category?')) return;
+      cats.splice(cd, 1); Store.save();
     } else if (act === 'export') exportBackup();
     else if (act === 'import') importBackup();
     else if (act === 'reset') {

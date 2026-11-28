@@ -40,5 +40,10 @@ and keep the copy in Notes, Files or an email to yourself. **Import backup** res
 - `js/kitten-editor.js` – add/edit kitten form
 - `js/calendar.js` – calendar and events
 - `js/weights.js` – weight chart and daily table
+- `js/documents.js` – documents tab, upload and viewer (PDFs shown with PDF.js 2.6, loaded from jsDelivr when needed)
+- `js/docs-db.js` – stores document files in IndexedDB
 - `js/settings.js` – settings tab
+
+When you change any file, bump the `?v=` number on the script and stylesheet links in `index.html`
+so the iPad loads the new version instead of a cached copy.
 - `js/app.js` – tabs and alerts

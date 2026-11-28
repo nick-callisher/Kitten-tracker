@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var esc = UI.esc, $ = UI.$, $all = UI.$all;
-  var draft, isNew, root;
+  var draft, isNew, root, pane = 'info', pendingWeight = null;
   var TEST_OPTS = ['', 'Negative', 'Positive', 'Pending'];
 
   function weightInputs(prefix) {
@@ -65,6 +65,16 @@
       '<div class="modal-head"><h2>' + (isNew ? 'Add kitten' : esc(k.name || 'Kitten')) + '</h2>' +
       '<button class="btn" data-act="cancel">Close</button></div>' +
 
+      '<div class="editor-tabs"><button data-pane="info"' + (pane === 'info' ? ' class="active"' : '') + '>Info</button>' +
+      '<button data-pane="docs"' + (pane === 'docs' ? ' class="active"' : '') + (isNew ? ' disabled title="Save the kitten first"' : '') + '>Documents (' +
+        (isNew ? 0 : Store.documentsFor(k.id).length) + ')</button></div>' +
+
+      '<div id="ke-pane-docs"' + (pane === 'docs' ? '' : ' style="display:none"') + '>' +
+      '<div class="view-toolbar"><span class="card-sub">Documents for ' + esc(k.name || 'this kitten') + '. They also appear on the main Documents tab.</span>' +
+      '<span class="spacer"></span><button class="btn primary" data-act="adddoc">+ Add document</button></div>' +
+      '<div class="doc-list" id="ke-docs">' + (isNew ? '' : Documents.listHTML(Store.documentsFor(k.id), false)) + '</div></div>' +
+
+      '<div id="ke-pane-info"' + (pane === 'info' ? '' : ' style="display:none"') + '>' +
       '<div class="photo-edit"><div class="card-photo" id="ke-photo">' + UI.photoHTML(k) + '</div><div>' +
       '<label class="btn file-btn">' + (k.photo ? 'Change photo' : 'Add photo') + '<input type="file" accept="image/*" id="ke-file"></label>' +
       (k.photo ? '<button class="btn" data-act="rotate">Rotate</button><button class="btn danger" data-act="nophoto">Remove</button>' : '') +
@@ -110,6 +120,7 @@
 
       '<div class="section-title">Notes</div>' +
       '<textarea id="ke-notes" placeholder="Feeding, meds, personality…">' + esc(k.notes) + '</textarea>' +
+      '</div>' +
 
       '<div class="modal-foot"><button class="btn primary" data-act="save">Save</button>' +
       '<button class="btn" data-act="cancel">Cancel</button><span class="spacer"></span>' +
@@ -118,7 +129,23 @@
 
     root = UI.openModal(html);
     bind();
+    if (pendingWeight) { fillWeight('ke-w', pendingWeight.grams); $('#ke-wdate', root).value = pendingWeight.date; }
   }
+
+  function showPane(p) {
+    pane = p;
+    $('#ke-pane-info', root).style.display = p === 'info' ? '' : 'none';
+    $('#ke-pane-docs', root).style.display = p === 'docs' ? '' : 'none';
+    $all('[data-pane]', root).forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-pane') === p); });
+  }
+
+  // Leave the card for a document dialog, then come back with unsaved edits intact.
+  function stash() {
+    collect();
+    var g = readWeight('ke-w');
+    pendingWeight = g != null ? { grams: g, date: $('#ke-wdate', root).value } : null;
+  }
+  function comeBack() { render(); }
 
   // Copy form values into the draft (without saving).
   function collect() {
@@ -173,8 +200,13 @@
   }
 
   function onClick(e) {
+    var tabBtn = e.target.closest('[data-pane]');
+    if (tabBtn) { if (!tabBtn.disabled) showPane(tabBtn.getAttribute('data-pane')); return; }
+    var docRow = e.target.closest('[data-doc]');
+    if (docRow) { stash(); Documents.openView(docRow.getAttribute('data-doc'), comeBack); return; }
     var t = e.target.closest('[data-act],[data-fv-del]');
     if (!t) return;
+    if (t.getAttribute('data-act') === 'adddoc') { stash(); Documents.openAdd(draft.id, comeBack); return; }
     if (t.hasAttribute('data-fv-del')) {
       collect(); draft.fvrcp.splice(+t.getAttribute('data-fv-del'), 1);
       $('#ke-fvrcp', root).innerHTML = fvrcpHTML();
@@ -205,7 +237,7 @@
       Store.upsertKitten(draft); UI.closeModal();
       UI.toast(draft.archived ? 'Archived. Find it under Settings → Archive.' : 'Restored');
     } else if (act === 'delete') {
-      if (confirm('Delete ' + (draft.name || 'this kitten') + ' and all of their weights? This cannot be undone.\n\nTip: use Archive instead to keep their records.')) {
+      if (confirm('Delete ' + (draft.name || 'this kitten') + ' and all of their weights and documents? This cannot be undone.\n\nTip: use Archive instead to keep their records.')) {
         Store.deleteKitten(draft.id); UI.closeModal(); UI.toast('Deleted');
       }
     }
@@ -226,7 +258,8 @@
   function open(id, stageId) {
     var existing = id ? Store.getKitten(id) : null;
     isNew = !existing;
-    draft = JSON.parse(JSON.stringify(existing || Store.newKitten(stageId)));
+    pane = 'info'; pendingWeight = null;
+    draft =JSON.parse(JSON.stringify(existing || Store.newKitten(stageId)));
     draft.fvrcp = draft.fvrcp || [];
     render();
     if (!isNew) {

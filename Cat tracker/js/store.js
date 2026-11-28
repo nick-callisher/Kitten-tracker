@@ -25,6 +25,7 @@
       kittens: [],
       weights: [],   // { id, kittenId, date: 'YYYY-MM-DD', grams }
       events: [],    // manual events { id, title, date, time, type, kittenId, notes }
+      documents: [], // { id, kittenId, name, category, date, mime, size, notes, thumb, added } — file data is in DocsDB
       settings: {
         unit: 'lb',              // lb | lboz | oz | g | kg
         dewormIntervalDays: 14,
@@ -37,6 +38,7 @@
         textSize: 'm',
         backupReminderDays: 7,
         cNumberYear: String(new Date().getFullYear()).slice(-2),
+        docCategories: ['Vet record', 'Vaccine record', 'Intake form', 'Spay/neuter', 'Test results', 'Photo', 'Other'],
         apptTypes: [
           { id: 'spay', name: 'Spay/neuter', color: '#d03b3b' },
           { id: 'deworm', name: 'Dewormer', color: '#1baf7a' },
@@ -72,6 +74,7 @@
     s.kittens = s.kittens || [];
     s.weights = s.weights || [];
     s.events = s.events || [];
+    s.documents = s.documents || [];
     s.meta = s.meta || d.meta;
     s.settings = s.settings || {};
     for (var k in d.settings) {
@@ -227,7 +230,23 @@
     state.kittens = state.kittens.filter(function (k) { return k.id !== id; });
     state.weights = state.weights.filter(function (w) { return w.kittenId !== id; });
     state.events.forEach(function (e) { if (e.kittenId === id) e.kittenId = ''; });
+    var gone = state.documents.filter(function (d) { return d.kittenId === id; });
+    state.documents = state.documents.filter(function (d) { return d.kittenId !== id; });
+    gone.forEach(function (d) { if (window.DocsDB) DocsDB.remove(d.id); });
     save();
+  }
+
+  /* ---------- documents (details only; files are in DocsDB) ---------- */
+  function documentsFor(kittenId) {
+    return state.documents.filter(function (d) { return kittenId == null || d.kittenId === kittenId; })
+      .sort(function (a, b) { return (b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : (b.added < a.added ? -1 : 1); });
+  }
+  function getDocument(id) {
+    for (var i = 0; i < state.documents.length; i++) if (state.documents[i].id === id) return state.documents[i];
+    return null;
+  }
+  function docsTotalKB() {
+    return Math.round(state.documents.reduce(function (n, d) { return n + (d.size || 0); }, 0) / 1024);
   }
   function kittensInStage(stageId) {
     return state.kittens
@@ -366,8 +385,28 @@
   function importJSON(text) {
     var data = JSON.parse(text);
     if (!data || !data.stages || !data.kittens) throw new Error('This does not look like a Kitten Tracker backup.');
+    var files = data.documentFiles || null;
+    delete data.documentFiles;
     state = migrate(data);
     save();
+    // Backups may include document files; restore them if present.
+    if (!window.DocsDB) return Promise.resolve();
+    if (!files) return Promise.resolve();
+    return DocsDB.clear().then(function () {
+      return Promise.all(Object.keys(files).map(function (id) { return DocsDB.put(id, files[id]); }));
+    });
+  }
+  // Full backup including document files (can be large).
+  function exportWithFiles() {
+    if (!window.DocsDB || !state.documents.length) return Promise.resolve(exportJSON());
+    var files = {};
+    return Promise.all(state.documents.map(function (d) {
+      return DocsDB.get(d.id).then(function (data) { if (data) files[d.id] = data; });
+    })).then(function () {
+      var copy = JSON.parse(JSON.stringify(state));
+      copy.documentFiles = files;
+      return JSON.stringify(copy);
+    });
   }
   function markBackedUp() {
     state.meta.lastBackup = new Date().toISOString();
@@ -375,6 +414,7 @@
   }
   function resetAll() {
     state = defaults();
+    if (window.DocsDB) DocsDB.clear();
     save();
   }
   function storageUsedKB() {
@@ -402,10 +442,12 @@
     dewormSchedule: dewormSchedule, nextDewormer: nextDewormer, nextFvrcp: nextFvrcp, dueStatus: dueStatus,
     // weights
     weightsFor: weightsFor, getWeight: getWeight, setWeight: setWeight, latestWeights: latestWeights,
+    // documents
+    documentsFor: documentsFor, getDocument: getDocument, docsTotalKB: docsTotalKB,
     // events
     apptType: apptType, eventsBetween: eventsBetween,
     // backup
-    exportJSON: exportJSON, importJSON: importJSON, markBackedUp: markBackedUp,
+    exportJSON: exportJSON, exportWithFiles: exportWithFiles, importJSON: importJSON, markBackedUp: markBackedUp,
     resetAll: resetAll, storageUsedKB: storageUsedKB
   };
 })();
