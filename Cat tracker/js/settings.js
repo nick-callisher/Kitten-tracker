@@ -100,28 +100,76 @@
   }
 
   /* ---------- backup ---------- */
+  // iPads report themselves as "Macintosh" from iOS 13 on, so also check for touch.
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  }
+
   function exportBackup() {
     var json = Store.exportJSON(), name = 'kitten-tracker-backup-' + Store.today() + '.json';
     var nDocs = Store.state.documents.length;
+    // iOS 12 Safari can't download files from a web page, so use the share sheet there.
+    var useShare = isIOS() && !!navigator.share;
+    var full = null; // backup including document files, prepared ahead so the tap starts it right away
     var root = UI.openModal('<div class="modal-head"><h2>Export backup</h2><button class="btn" data-x>Close</button></div>' +
-      '<p class="desc">Tap <b>Download file</b> if it works on your device. Otherwise tap <b>Copy</b> and paste it into a note or email to yourself.</p>' +
-      (nDocs ? '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="bk-files" checked>Include document files in the download (' +
-        Documents.fmtSize(Store.docsTotalKB() * 1024) + ')</label>' +
-        '<p class="field-hint" style="margin-top:0">The copy/paste text below never includes document files — only their names and details.</p>' : '') +
-      '<textarea id="bk-text" readonly style="min-height:180px;font-family:monospace;font-size:12px">' + esc(json) + '</textarea>' +
-      '<div class="modal-foot"><button class="btn primary" data-dl>Download file</button><button class="btn" data-copy>Copy</button><button class="btn" data-x>Done</button></div>');
+      (useShare ?
+        '<p class="desc">Tap <b>Share backup</b> and choose <b>Mail</b> (email it to yourself) or <b>Notes</b>. ' +
+          'To restore later, copy the whole backup text and paste it into <b>Import backup</b>.</p>' :
+        '<p class="desc">Tap <b>Download file</b> to save a backup file. You can also tap <b>Copy</b> and paste the text into a note or email to yourself.</p>') +
+      (nDocs ? '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="bk-files"' + (useShare ? '' : ' checked') +
+        '>Include document files (' + Documents.fmtSize(Store.docsTotalKB() * 1024) + ')</label>' +
+        '<p class="field-hint" style="margin-top:0" id="bk-files-hint">' + (useShare ?
+          'Document files make the backup much larger and may be too big for Mail or Notes. Without them, document names and details are still saved.' :
+          'The copy/paste text below never includes document files, only their names and details.') + '</p>' : '') +
+      '<textarea id="bk-text" readonly style="min-height:160px;font-family:monospace;font-size:12px">' + esc(json) + '</textarea>' +
+      '<div class="modal-foot"><button class="btn primary" data-dl>' + (useShare ? 'Share backup' : 'Download file') + '</button>' +
+      '<button class="btn" data-copy>Copy</button><button class="btn" data-x>Done</button></div>');
+
+    var dlBtn = $('[data-dl]', root), filesBox = $('#bk-files', root);
+    function prepare() {
+      if (!filesBox || !filesBox.checked || full) { dlBtn.disabled = false; return; }
+      dlBtn.disabled = true; dlBtn.textContent = 'Preparing…';
+      Store.exportWithFiles().then(function (text) {
+        full = text;
+        dlBtn.disabled = false; dlBtn.textContent = useShare ? 'Share backup' : 'Download file';
+        if (filesBox.nextSibling) filesBox.parentNode.lastChild.textContent = 'Include document files (' + Documents.fmtSize(text.length) + ' total)';
+      }, function (err) {
+        dlBtn.disabled = false; dlBtn.textContent = useShare ? 'Share backup' : 'Download file';
+        filesBox.checked = false;
+        alert('Could not read the document files: ' + (err.message || err) + '\n\nThe backup will include everything else.');
+      });
+    }
+    if (filesBox) filesBox.addEventListener('change', prepare);
+    prepare();
+
+    function download(text) {
+      var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      Store.markBackedUp();
+      UI.toast('Backup saved to your Downloads folder');
+    }
+    function share(text) {
+      navigator.share({ title: 'Kitten Tracker backup ' + Store.today(), text: text }).then(function () {
+        Store.markBackedUp();
+        UI.toast('Backup shared');
+      }, function (err) {
+        if (err && err.name === 'AbortError') return; // closed the share sheet
+        alert('Sharing didn\'t work' + (text.length > 2000000 ? ' (the backup may be too large; try without document files)' : '') +
+          '.\n\nUse Copy instead and paste the text into Notes or an email to yourself.');
+      });
+    }
+
     root.addEventListener('click', function (e) {
       if (e.target.closest('[data-x]')) { UI.closeModal(); return; }
       if (e.target.closest('[data-dl]')) {
-        var withFiles = $('#bk-files', root) && $('#bk-files', root).checked;
-        (withFiles ? Store.exportWithFiles() : Promise.resolve(json)).then(function (text) {
-          var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-          var a = document.createElement('a');
-          a.href = url; a.download = name; a.target = '_blank';
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
-          Store.markBackedUp();
-        }, function (err) { alert('Backup failed: ' + (err.message || err)); });
+        if (dlBtn.disabled) return;
+        var text = filesBox && filesBox.checked ? full : json;
+        if (!text) return;
+        if (useShare) share(text); else download(text);
         return;
       }
       if (e.target.closest('[data-copy]')) {
