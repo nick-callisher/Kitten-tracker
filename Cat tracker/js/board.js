@@ -33,7 +33,8 @@
     var tracked = Store.isTracked(k);
     var rows = '';
     if (tracked) rows += '<div><span class="lbl">Dewormer</span>' + UI.dueHTML(Store.nextDewormer(k)) + '</div>';
-    if (k.spayDate) rows += '<div><span class="lbl">Spay/neuter</span>' + UI.dueHTML(k.spayDate) + '</div>';
+    if (k.spayDate && k.spayDate < Store.today()) rows += '<div><span class="lbl">Spay/neuter</span><span class="pill ok">Done ' + esc(Store.fmtDate(k.spayDate)) + '</span></div>';
+    else if (k.spayDate) rows += '<div><span class="lbl">Spay/neuter</span>' + UI.dueHTML(k.spayDate) + '</div>';
     else if (tracked) rows += '<div><span class="lbl">Spay/neuter</span><span class="pill ok">Not booked</span></div>';
     var fv = Store.nextFvrcp(k);
     if (fv && tracked) rows += '<div><span class="lbl">FVRCP</span>' + UI.dueHTML(fv) + '</div>';

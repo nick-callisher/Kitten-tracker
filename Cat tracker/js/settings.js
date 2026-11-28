@@ -88,6 +88,7 @@
       '<label class="field" style="max-width:260px"><span>Remind me to back up every (days)</span><input type="number" min="0" data-cfg-num="backupReminderDays" value="' + cfg.backupReminderDays + '"><div class="field-hint">0 turns the reminder off.</div></label>' +
       '<div class="modal-foot"><button class="btn primary" data-act="export">Export backup</button>' +
       '<button class="btn" data-act="import">Import backup</button><span class="spacer"></span>' +
+      '<button class="btn" data-act="demo">Add demo data</button>' +
       '<button class="btn danger" data-act="reset">Erase all data</button></div></div>' +
 
       '<div class="set-card"><h2>Install on iPad</h2><p class="desc">In Safari tap the Share button, then <b>Add to Home Screen</b>. ' +
@@ -212,6 +213,12 @@
       var used = s.documents.filter(function (d) { return d.category === cats[cd]; }).length;
       if (used && !confirm(used + ' document(s) use "' + cats[cd] + '". They will keep that label. Delete the category?')) return;
       cats.splice(cd, 1); Store.save();
+    } else if (act === 'demo') {
+      if (!confirm('Add demo data?\n\nThis loads 8 sample kittens with photos, weights, calendar events and documents for testing.')) return;
+      if (!confirm('WARNING: This will ERASE ALL existing data on this device (kittens, weights, events, documents and settings) and replace it with demo data. This cannot be undone.\n\nIf you have real data here, tap Cancel and use Export backup first.\n\nErase everything and load demo data?')) return;
+      Demo.load().then(function () {
+        App.applyDisplay(); App.show('board'); UI.toast('Demo data loaded');
+      }, function (err) { App.show('board'); alert('Demo kittens loaded, but some demo documents could not be saved: ' + (err.message || err)); });
     } else if (act === 'update-check') {
       App.checkForUpdate(true);
     } else if (act === 'export') exportBackup();
