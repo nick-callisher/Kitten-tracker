@@ -63,13 +63,50 @@
 
   Store.onChange(renderAll);
 
-  // Refresh due-date badges when the app comes back after midnight.
+  /* ---------- updates ----------
+     The iPad's Home Screen app can keep showing an old copy for a long time.
+     On launch and whenever the app comes back to the front, fetch a fresh copy of
+     index.html (a unique URL skips the cache) and compare version numbers. */
+  var metaV = document.querySelector('meta[name="app-version"]');
+  var VERSION = metaV ? metaV.getAttribute('content') : '0';
+  var bannerEl = document.getElementById('update-banner');
+
+  function applyUpdate(v) {
+    try { sessionStorage.setItem('kt.updTried', v); } catch (e) { /* ignore */ }
+    location.replace(location.pathname + '?v=' + encodeURIComponent(v) + '&t=' + Date.now());
+  }
+  function checkForUpdate(manual) {
+    if (!window.fetch) return;
+    fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var m = /name="app-version" content="([^"]+)"/.exec(html);
+        if (!m) { if (manual) UI.toast('Could not check for updates'); return; }
+        var latest = m[1];
+        if (latest === VERSION) { if (manual) UI.toast('You have the latest version (' + VERSION + ')'); return; }
+        var tried = null;
+        try { tried = sessionStorage.getItem('kt.updTried'); } catch (e) { /* ignore */ }
+        var busy = document.getElementById('modal-back').classList.contains('open') || Board.isDragging();
+        // Update straight away unless the user is in the middle of something
+        // (or we already tried once and the old copy came back).
+        if (!manual && !busy && tried !== latest) { applyUpdate(latest); return; }
+        bannerEl.innerHTML = '<div class="alert update">A new version of the app is ready. ' +
+          '<button class="btn small primary" id="do-update">Update now</button></div>';
+        document.getElementById('do-update').onclick = function () { applyUpdate(latest); };
+      })
+      .catch(function () { if (manual) UI.toast('Could not check for updates. Are you online?'); });
+  }
+
+  // Refresh due-date badges when the app comes back after midnight, and look for updates.
   var lastDay = Store.today();
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && Store.today() !== lastDay) { lastDay = Store.today(); renderAll(); }
+    if (document.hidden) return;
+    if (Store.today() !== lastDay) { lastDay = Store.today(); renderAll(); }
+    checkForUpdate(false);
   });
 
-  window.App = { applyDisplay: applyDisplay, show: show };
+  window.App = { applyDisplay: applyDisplay, show: show, checkForUpdate: checkForUpdate, version: VERSION };
+  setTimeout(function () { checkForUpdate(false); }, 1500);
 
   applyDisplay();
   var saved = null;

@@ -130,6 +130,8 @@ label.field > span { display: block; font-size: .8em; color: var(--ink-2); font-
 }
 .alert.bad { background: var(--bad-bg); border-left-color: var(--bad); }
 .alert b { font-weight: 700; }
+.alert.update { background: var(--surface); border-left-color: var(--accent); }
+.alert.update .btn { margin-left: 8px; }
 
 /* ---------- board ---------- */
 .board {

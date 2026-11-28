@@ -91,7 +91,11 @@
       '<button class="btn danger" data-act="reset">Erase all data</button></div></div>' +
 
       '<div class="set-card"><h2>Install on iPad</h2><p class="desc">In Safari tap the Share button, then <b>Add to Home Screen</b>. ' +
-      'Always open the app from that icon: on iOS 12 the Home Screen app keeps its own data, separate from Safari.</p></div>';
+      'Always open the app from that icon: on iOS 12 the Home Screen app keeps its own data, separate from Safari.</p></div>' +
+
+      '<div class="set-card"><h2>App version ' + esc(App.version) + '</h2><p class="desc">The app checks for updates each time you open it. ' +
+      'Updating never touches your kittens, weights or documents.</p>' +
+      '<button class="btn" data-act="update-check">Check for updates</button></div>';
   }
 
   /* ---------- backup ---------- */
@@ -208,6 +212,8 @@
       var used = s.documents.filter(function (d) { return d.category === cats[cd]; }).length;
       if (used && !confirm(used + ' document(s) use "' + cats[cd] + '". They will keep that label. Delete the category?')) return;
       cats.splice(cd, 1); Store.save();
+    } else if (act === 'update-check') {
+      App.checkForUpdate(true);
     } else if (act === 'export') exportBackup();
     else if (act === 'import') importBackup();
     else if (act === 'reset') {
